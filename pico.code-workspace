@@ -1,10 +1,10 @@
 {
 	"folders": [
         {
-            "path": "hello_cpp"
+            "path": "midi_test"
         },
         {
-            "path": "midi_test"
+            "path": "hello_sdk"
         }
     ],
     "settings": {}
