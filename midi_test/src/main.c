@@ -123,6 +123,19 @@ void midi_task(void)
   static uint32_t start_ms = 0;
   static uint32_t note_pos = 0;
 
+  // check midi input
+  int32_t num_bytes = 0;
+  static uint8_t buf[64] = {0};
+  if ((num_bytes = tud_midi_available()))
+  {
+    if (num_bytes > sizeof(buf))
+        num_bytes = sizeof(buf);
+
+    // midi-thru
+    tud_midi_read(buf, num_bytes);
+    tud_midi_write(0, buf, num_bytes);
+  }
+
   // send note every 1000 ms
   if (board_millis() - start_ms < 286) return; // not enough time
   start_ms += 286;
