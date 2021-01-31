@@ -1,8 +1,11 @@
 {
 	"folders": [
-		{
-			"path": "hello_cpp"
-		}
-	],
+        {
+            "path": "hello_cpp"
+        },
+        {
+            "path": "midi_test"
+        }
+    ],
     "settings": {}
 }
