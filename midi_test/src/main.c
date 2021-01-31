@@ -1,27 +1,13 @@
-/* 
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
- */
+//--------------------------------------------------------------------+
+// Pico MIDI Test by H.R.Graf
+//
+// Works out-of-the-box on Raspberry Pi Pico using USB-MIDI
+// No MIDI DIN circuit needed.
+//
+// Received Note On/Off control built-in LED and are sent back on channel 2
+// with slight change in pitch (to demonstrate active functionality).
+//
+//--------------------------------------------------------------------+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,12 +16,7 @@
 #include "bsp/board.h"
 #include "tusb.h"
 
-/* This MIDI example send sequence of note (on/off) repeatedly. To test on PC, you need to install
- * synth software and midi connection management software. On
- * - Linux (Ubuntu): install qsynth, qjackctl. Then connect TinyUSB output port to FLUID Synth input port
- * - Windows: install MIDI-OX
- * - MacOS: SimpleSynth
- */
+#include "midi.h"
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
@@ -54,10 +35,128 @@ enum  {
 
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 
-void led_blinking_task(void);
-void midi_task(void);
+//--------------------------------------------------------------------+
+// BLINKING TASK
+//--------------------------------------------------------------------+
 
-/*------------- MAIN -------------*/
+static void led_blinking_task(void)
+{
+  static uint32_t start_ms = 0;
+  static bool led_state = false;
+
+  // Blink every interval ms
+  if ( board_millis() - start_ms < blink_interval_ms) return; // not enough time
+  start_ms += blink_interval_ms;
+
+  board_led_write(led_state);
+  led_state = 1 - led_state; // toggle
+}
+
+//--------------------------------------------------------------------+
+// MIDI Task
+//--------------------------------------------------------------------+
+
+static void handleMidiEv(char *buf, int len)
+{
+    static char msg[4];
+    if (! len)
+        return;
+
+    char channel = 2;
+    char status = buf[0];
+    switch (status & 0xF0)
+    {
+    case MIDI_NOTEOFF:
+        if (len != 3)
+            return;
+        board_led_write(false);
+        msg[0] = MIDI_NOTEOFF | channel;
+        msg[1] = buf[1] + 1; // key
+        msg[2] = buf[2]; // velocity
+        tud_midi_write(0, msg, 3);
+        break;
+
+    case MIDI_NOTEON:
+        if (len != 3)
+            return;
+        board_led_write(true);
+        msg[0] = MIDI_NOTEON | channel;
+        msg[1] = buf[1] + 1; // key
+        msg[2] = buf[2]; // velocity
+        tud_midi_write(0, msg, 3);
+        break;
+    }
+}
+
+static int getMidiEvLen(char status)
+{
+    int len = 0;
+    switch (status & 0xF0)
+    {
+    case MIDI_NOTEOFF:         len = 3; break;
+    case MIDI_NOTEON:          len = 3; break;
+    case MIDI_POLYKEYPRESSURE: len = 3; break;
+    case MIDI_PROGRAMCHANGE:   len = 2; break;
+    case MIDI_CHANNELPRESSURE: len = 2; break;
+    case MIDI_PITCHBEND:       len = 3; break;
+    }
+    return len;
+}
+
+static void midi_task(void)
+{
+    static char recvBuf[20];
+    static int  recvPos = 0;
+    
+    // get (more) data
+    if (recvPos < sizeof(recvBuf))
+    {
+        //int len = tud_midi_available();
+        int len = tud_midi_read(&recvBuf[recvPos], sizeof(recvBuf) - recvPos);
+        recvPos += len;
+    }
+
+    // parse data
+    int i = 0;
+    while (i < recvPos)
+    {
+        if (recvBuf[i] & 0x80) // status
+        {
+            int len = getMidiEvLen(recvBuf[i]);
+            if (len > 0)
+            {
+                if ((i + len) > recvPos)
+                    break; // not enough data yet
+
+                // handle midi event
+                handleMidiEv(&recvBuf[i], len);
+                i += len;
+            }
+            else
+                i++; // skip
+        }
+        else
+            i++; // skip
+    }
+
+    if (i >= recvPos)
+    {
+        recvPos = 0; // all consumed
+    }
+    else if (i > 0) // partly consumed
+    {
+        recvPos -= i;
+
+        // shift down
+        for (int j = 0; j < recvPos; j++)
+            recvBuf[j] = recvBuf[j + i];
+    }
+}
+
+//--------------------------------------------------------------------+
+// MAIN
+//--------------------------------------------------------------------+
+
 int main(void)
 {
   board_init();
@@ -67,7 +166,8 @@ int main(void)
   while (1)
   {
     tud_task(); // tinyusb device task
-    led_blinking_task();
+    if (blink_interval_ms != BLINK_MOUNTED)
+      led_blinking_task();
     midi_task();
   }
 
@@ -107,71 +207,3 @@ void tud_resume_cb(void)
 }
 
 //--------------------------------------------------------------------+
-// MIDI Task
-//--------------------------------------------------------------------+
-
-// Store example melody as an array of note values
-static uint8_t note_sequence[] =
-{
-  74,78,81,86,90,93,98,102,57,61,66,69,73,78,81,85,88,92,97,100,97,92,88,85,81,78,
-  74,69,66,62,57,62,66,69,74,78,81,86,90,93,97,102,97,93,90,85,81,78,73,68,64,61,
-  56,61,64,68,74,78,81,86,90,93,98,102
-};
-
-void midi_task(void)
-{
-  static uint32_t start_ms = 0;
-  static uint32_t note_pos = 0;
-
-  // check midi input
-  int32_t num_bytes = 0;
-  static uint8_t buf[64] = {0};
-  if ((num_bytes = tud_midi_available()))
-  {
-    if (num_bytes > sizeof(buf))
-        num_bytes = sizeof(buf);
-
-    // midi-thru
-    tud_midi_read(buf, num_bytes);
-    tud_midi_write(0, buf, num_bytes);
-  }
-
-  // send note every 1000 ms
-  if (board_millis() - start_ms < 286) return; // not enough time
-  start_ms += 286;
-
-  // Previous positions in the note sequence.
-  int previous = note_pos - 1;
-
-  // If we currently are at position 0, set the
-  // previous position to the last note in the sequence.
-  if (previous < 0) previous = sizeof(note_sequence) - 1;
-
-  // Send Note On for current position at full velocity (127) on channel 1.
-  tudi_midi_write24(0, 0x90, note_sequence[note_pos], 127);
-
-  // Send Note Off for previous note.
-  tudi_midi_write24(0, 0x80, note_sequence[previous], 0);
-
-  // Increment position
-  note_pos++;
-
-  // If we are at the end of the sequence, start over.
-  if (note_pos >= sizeof(note_sequence)) note_pos = 0;
-}
-
-//--------------------------------------------------------------------+
-// BLINKING TASK
-//--------------------------------------------------------------------+
-void led_blinking_task(void)
-{
-  static uint32_t start_ms = 0;
-  static bool led_state = false;
-
-  // Blink every interval ms
-  if ( board_millis() - start_ms < blink_interval_ms) return; // not enough time
-  start_ms += blink_interval_ms;
-
-  board_led_write(led_state);
-  led_state = 1 - led_state; // toggle
-}
