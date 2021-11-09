@@ -5,6 +5,8 @@ https://www.raspberrypi.com/products/raspberry-pi-pico/
 
 ## Micropython
 
+[Micropython examples](./micropython)
+
 [Official Micropython Pico Guide (PDF)](./micropython/RPi_PiPico_Digital_v10.pdf)
 
 Useful links:
