@@ -2,16 +2,16 @@
 
 ## Button and LED
 
-[button.py](./micropython/button.py)
+[button.py](./button.py)
 
-[led.py](./micropython/led.py)
+[led.py](./led.py)
 
-<img src="./micropython/button_and_led_wiring.png" /> 
+<img src="./button_and_led_wiring.png" /> 
 
 ## OLED Display
 
 for SH1107 with 128x64 pixels
 
-[oled.py](./micropython/oled.py)
+[oled.py](./oled.py)
 
-<img src="./micropython/oled_wiring.png" /> 
+<img src="./oled_wiring.png" /> 
