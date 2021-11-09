@@ -5,6 +5,8 @@ https://www.raspberrypi.com/products/raspberry-pi-pico/
 
 ## Micropython
 
+[Official Micropython Pico Guide (PDF)](./micropython/RPi_PiPico_Digital_v10.pdf)
+
 Useful links:
 - https://www.raspberrypi.com/documentation/microcontrollers/micropython.html
 - https://projects.raspberrypi.org/en/projects/getting-started-with-the-pico
