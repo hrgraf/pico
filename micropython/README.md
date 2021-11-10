@@ -10,9 +10,11 @@
 
 ## OLED Display
 
-for SH1107 with 128x64 pixels
+for SSD1306 or SH1107 with 128x64 pixels
 
 [oled.py](./oled.py)
+
+[ssd1306.py (driver)](./sh1107.py)
 
 [sh1107.py (driver)](./sh1107.py)
 
