@@ -19,13 +19,22 @@ This programs the MicroPython firmware onto the flash memory on your Raspberry P
 
 Use a serial terminal (like [puTTY](https://www.putty.org) at 115kBaud for directly accesing the Micropython REPL, then type "help()" and Enter.
 
-Or install [Thonny](https://thonny.org), a Python IDE for beginners.
+For first steps, better install [Thonny](https://thonny.org), a Python IDE for beginners.
 
-Alternatively, install ampy on your host: 
+To access the Micropython filesystem, install ampy on your host: 
 ```
 pip3 install adafruit-ampy
 ampy -p COM5 ls                # to browse the filesystem
 ampy -p COM5 put hobbes.pbm    # to upload a (binary) file
+```
+Or use rshell on your host:
+```
+pip3 install rshell
+rshell                         # open rshell
+>help
+>boards
+>ls -l /pyboard
+>exit
 ```
 
 # Examples and wiring
